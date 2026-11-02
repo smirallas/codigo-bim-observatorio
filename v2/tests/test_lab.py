@@ -12,7 +12,7 @@ from uuid import uuid4
 from archive import Archive
 from collector import collect_one, public_url
 from demo import AT, layers
-from sources import ADAPTERS, rail
+from sources import ADAPTERS, dgt, rail, roads
 from server import Handler, bbox_value, layer_payload
 from engine import available, evaluate
 from scenarios import all_scenarios, iso
@@ -27,6 +27,27 @@ class AdapterTests(unittest.TestCase):
         self.assertIsNone(features[0]['properties']['observed_at'])
         self.assertIsNone(features[0]['properties']['speed_m_s'])
         self.assertIsNotNone(published)
+
+    def test_datex_uses_explicit_coordinates_and_keeps_missing_observation(self):
+        xml = b'<situationPublication xmlns="urn:test"><publicationTime>2026-11-01T12:00:00Z</publicationTime><situationRecord id="r1"><latitude>40.1</latitude><longitude>-3.8</longitude></situationRecord><situationRecord id="without"><roadNumber>A-4</roadNumber></situationRecord></situationPublication>'
+        features, _ = dgt(xml, AT)
+        self.assertEqual(len(features), 1)
+        self.assertIsNone(features[0]['properties']['observed_at'])
+        with self.assertRaises(ValueError):
+            dgt(b'<!DOCTYPE x><situationPublication/>', AT)
+
+    def test_road_import_and_invalid_latitude(self):
+        feature = layers()['roads'][0]
+        features, _ = roads(json.dumps({'type': 'FeatureCollection', 'features': [feature]}).encode(), AT)
+        self.assertEqual(features[0]['geometry']['type'], 'LineString')
+        feature['geometry']['coordinates'][0][1] = 200
+        with self.assertRaises(ValueError):
+            roads(json.dumps({'type': 'FeatureCollection', 'features': [feature]}).encode(), AT)
+
+    def test_osm_only_imports_highways_and_preserves_geometry(self):
+        xml = b'<osm><node id="1" lon="-3" lat="40"/><node id="2" lon="-3.1" lat="40.1"/><way id="3"><nd ref="1"/><nd ref="2"/><tag k="highway" v="primary"/><tag k="ref" v="A-X"/></way></osm>'
+        features, _ = roads(xml, AT)
+        self.assertEqual(features[0]['geometry']['coordinates'][1], [-3.1, 40.1])
 
     def test_bbox_rejects_nan_and_reversed_bounds(self):
         for value in ('nan,0,1,2', '3,4,1,2', '-200,0,1,2', '0,0,1'):

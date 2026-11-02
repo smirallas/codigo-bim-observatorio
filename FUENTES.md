@@ -7,3 +7,5 @@ MapLibre: BSD-3-Clause, licencia en v2/web. Natural Earth: dominio pÃºblico, p
 IGN/CNIG: https://www.ign.es/web/ign/portal/politica-datos Â· cartografÃ­a CC BY 4.0. GeoPackage ferroviario: https://centrodedescargas.cnig.es/CentroDescargas/detalleArchivo?sec=13139375 . Tramo prÃ³ximo no equivale a vÃ­a fÃ­sica identificada.
 
 GTFS Renfe: https://ssl.renfe.com/gtransit/Fichero_AV_LD/google_transit.zip Â· CC BY 4.0; unir solo identificadores exactos.
+
+DGT: https://nap.dgt.es/es/dataset/incidencias-dgt-datex2-v3-7 Â· revisar licencia y cobertura en su ficha. No cubre todos los gestores. OSM: https://www.openstreetmap.org/copyright Â· ODbL; muestra acotada, no descargar un paÃ­s con la API de ediciÃ³n. CNIG carreteras: https://centrodedescargas.cnig.es/CentroDescargas/detalleArchivo?sec=13139379 .
