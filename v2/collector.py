@@ -45,6 +45,13 @@ def download(url, headers=None, data=None, info=None):
 
 def collect_one(archive, source):
     try:
+        if source == 'schedule':
+            with archive.connect() as db:
+                previous = db.execute("SELECT id FROM schedule_imports WHERE received_at>now()-interval '6 hours' ORDER BY received_at DESC LIMIT 1").fetchone()
+            if previous:
+                return {'source': 'schedule', 'status': 'cached'}
+            from schedule import import_schedule
+            return {'source': 'schedule', 'status': 'ok', **import_schedule(archive)}
         url = URLS[source]
         provider = os.getenv('FLIGHTS_PROVIDER', 'adsblol')
         if not url:

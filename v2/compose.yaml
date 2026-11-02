@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
     mem_limit: 384m
   web:
-    image: codigo-bim-observatorio:vias-trenes-postgis
+    image: codigo-bim-observatorio:filtros-fichas-trenes
     build:
       context: ..
       dockerfile: v2/Dockerfile
@@ -43,7 +43,7 @@ services:
     restart: unless-stopped
     mem_limit: 256m
   collector:
-    image: codigo-bim-observatorio:vias-trenes-postgis
+    image: codigo-bim-observatorio:filtros-fichas-trenes
     command: [python, collector.py]
     healthcheck:
       test: [CMD, python, -c, "import os,time; assert time.time()-os.path.getmtime('/tmp/collector-heartbeat')<90"]
@@ -53,7 +53,7 @@ services:
       retries: 3
     environment:
       <<: *app-env
-      ENABLED_SOURCES: ${ENABLED_SOURCES:-rail}
+      ENABLED_SOURCES: ${ENABLED_SOURCES:-rail,schedule}
       COLLECT_INTERVAL: ${COLLECT_INTERVAL:-900}
       OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:-}
       OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:-}

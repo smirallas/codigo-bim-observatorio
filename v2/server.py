@@ -31,7 +31,7 @@ def feature_payload(archive,source,capture_id,ordinal,at=None):
     prop=row['properties']
     if prop.get('observed_at') and instant(prop['observed_at'])>cutoff:return None
     from networks import associate
-    lookup=lambda *args: None
+    from schedule import lookup
     return {'feature':{'type':'Feature','geometry':row['geometry'],'properties':prop},
         'capture':{'id':row['id'],'received_at':row['received_at'].isoformat(),
             'published_at':row['published_at'].isoformat() if row['published_at'] else None,
@@ -67,7 +67,7 @@ def layer_payload(source, query, archive):
                     'note':'No hay captura disponible para ese instante; los ejemplos siguen en modo separado.'}
     features=snapshot['features']
     if mode=='archive' and source=='rail':
-        enrich=lambda *args: None
+        from schedule import enrich
         enrich(archive,features,cutoff)
     capture_age=(cutoff-instant(snapshot['received_at'])).total_seconds()
     valid_at=instant(query['valid_at'][0]) if query.get('valid_at') else cutoff
