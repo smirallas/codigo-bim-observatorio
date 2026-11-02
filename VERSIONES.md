@@ -1,9 +1,9 @@
-# CÃ³digo de cada artÃ­culo
+# Código de cada artículo
 
-Las etiquetas conservan el cÃ³digo al terminar cada entrega. `main` puede avanzar. Descargar ZIP desde Code â†’ Download ZIP en la etiqueta correspondiente.
+Las etiquetas conservan el código al terminar cada entrega. `main` puede avanzar. Descargar ZIP desde Code → Download ZIP en la etiqueta correspondiente.
 
-| Entrega | VersiÃ³n |
+| Entrega | Versión |
 |---|---|
-| 1 | [leer-datos-trenes](https://github.com/smirallas/codigo-bim-observatorio/tree/leer-datos-trenes) |
-| 2 | [recoger-trenes-postgresql](https://github.com/smirallas/codigo-bim-observatorio/tree/recoger-trenes-postgresql) |
-| 3 | [mapa-trenes-maplibre](https://github.com/smirallas/codigo-bim-observatorio/tree/mapa-trenes-maplibre) |
+| 1 | [leer-datos-trenes](https://github.com/smirallas/codigo-bim-observatorio/tree/leer-datos-trenes-v2) |
+| 2 | [recoger-trenes-postgresql](https://github.com/smirallas/codigo-bim-observatorio/tree/recoger-trenes-postgresql-v2) |
+| 3 | [mapa-trenes-maplibre](https://github.com/smirallas/codigo-bim-observatorio/tree/mapa-trenes-maplibre-v2) |

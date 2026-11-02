@@ -1,8 +1,8 @@
-# CÃ³digo BIM Â· mapa-trenes-maplibre
+# Código BIM · mapa-trenes-maplibre
 
-Entrega 3 de la construcciÃ³n del observatorio de datos abiertos.
+Entrega 3 de la construcción del observatorio de datos abiertos.
 
-Requisitos: Docker Compose y Python 3.12 para crear la configuraciÃ³n. Desde `v2`:
+Requisitos: Docker Compose y Python 3.12 para crear la configuración. Desde `v2`:
 
     python init_env.py
     docker compose up -d --wait db
@@ -12,8 +12,8 @@ Requisitos: Docker Compose y Python 3.12 para crear la configuraciÃ³n. Desde `
 
     docker compose --profile live up -d --build --wait
 
-Visor local: http://127.0.0.1:8042/v2/. Solo fuentes reales, actualizaciÃ³n automÃ¡tica y ficha al pulsar el mapa. No incluye consulta histÃ³rica pÃºblica. PostgreSQL no publica puerto; la web escucha en localhost. Sin datos disponibles, la web muestra esa ausencia. No usar los ejemplos como posiciones reales.
+Visor local: http://127.0.0.1:8042/v2/. Solo fuentes reales, actualización automática y ficha al pulsar el mapa. No incluye consulta histórica pública. PostgreSQL no publica puerto; la web escucha en localhost. Sin datos disponibles, la web muestra esa ausencia. No usar los ejemplos como posiciones reales.
 
-No ejecutar otra etiqueta contra un volumen con migraciones posteriores sin revisar compatibilidad. Para comparar entregas en paralelo, utilizar un proyecto Compose distinto (`-p nombre`) y un puerto `LAB_PORT` libre; no borrar volÃºmenes existentes.
+No ejecutar otra etiqueta contra un volumen con migraciones posteriores sin revisar compatibilidad. Para comparar entregas en paralelo, utilizar un proyecto Compose distinto (`-p nombre`) y un puerto `LAB_PORT` libre; no borrar volúmenes existentes.
 
-[Versiones de los artÃ­culos](VERSIONES.md). CÃ³digo propio MIT; conservar las licencias de bibliotecas y condiciones de las fuentes. No distribuir `.env`, datos recolectados ni copias de bases. Despliegue remoto manual posterior.
+[Versiones de los artículos](VERSIONES.md). Código propio MIT; conservar las licencias de bibliotecas y condiciones de las fuentes. No distribuir `.env`, datos recolectados ni copias de bases. Despliegue remoto manual posterior.
