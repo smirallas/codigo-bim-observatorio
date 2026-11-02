@@ -9,3 +9,4 @@ Las etiquetas conservan el cÃ³digo al terminar cada entrega. `main` puede avan
 | 3 | [mapa-trenes-maplibre](https://github.com/smirallas/codigo-bim-observatorio/tree/mapa-trenes-maplibre) |
 | 4 | [vias-trenes-postgis](https://github.com/smirallas/codigo-bim-observatorio/tree/vias-trenes-postgis) |
 | 5 | [filtros-fichas-trenes](https://github.com/smirallas/codigo-bim-observatorio/tree/filtros-fichas-trenes) |
+| 6 | [evaluar-datos-aproximaciones](https://github.com/smirallas/codigo-bim-observatorio/tree/evaluar-datos-aproximaciones) |

@@ -14,6 +14,8 @@ from collector import collect_one, public_url
 from demo import AT, layers
 from sources import ADAPTERS, rail
 from server import Handler, bbox_value, layer_payload
+from engine import available, evaluate
+from scenarios import all_scenarios, iso
 from unittest.mock import patch
 NOW = datetime.now(timezone.utc)
 
@@ -107,6 +109,20 @@ class DatabaseTests(unittest.TestCase):
         self.archive.prune(days=7, max_per_source=2, source=self.source)
         with self.archive.connect() as db:
             self.assertEqual(db.execute('SELECT count(*) AS total FROM captures WHERE source=%s', (self.source,)).fetchone()['total'], 2)
+
+class RuleTests(unittest.TestCase):
+
+    def test_scenario_outcomes_and_late_arrivals(self):
+        expected = ['candidate', 'no_candidate', 'not_evaluable', 'not_evaluable', 'no_candidate', 'not_evaluable']
+        for case, status in zip(all_scenarios(), expected):
+            at = case['times'][-1]
+            with self.subTest(case=case['id']):
+                self.assertEqual(evaluate(case['events'], case['train_ids'], at)['status'], status)
+        case = all_scenarios()[0]
+        self.assertEqual(evaluate(case['events'], case['train_ids'], iso(0))['conditional_reference_reach_s'], 100)
+        events = deepcopy(case['events'][:2])
+        events[0]['received_at'] = iso(20)
+        self.assertEqual(evaluate(events, case['train_ids'], iso(0))['status'], 'not_evaluable')
 
 class HTTPTests(unittest.TestCase):
 
