@@ -1,15 +1,15 @@
-# CÃ³digo de cada artÃ­culo
+# Código de cada artículo
 
-Las etiquetas conservan el cÃ³digo al terminar cada entrega. `main` puede avanzar. Descargar ZIP desde Code â†’ Download ZIP en la etiqueta correspondiente.
+Las etiquetas conservan el código al terminar cada entrega. `main` puede avanzar. Descargar ZIP desde Code → Download ZIP en la etiqueta correspondiente.
 
-| Entrega | VersiÃ³n |
+| Entrega | Versión |
 |---|---|
-| 1 | [leer-datos-trenes](https://github.com/smirallas/codigo-bim-observatorio/tree/leer-datos-trenes) |
-| 2 | [recoger-trenes-postgresql](https://github.com/smirallas/codigo-bim-observatorio/tree/recoger-trenes-postgresql) |
-| 3 | [mapa-trenes-maplibre](https://github.com/smirallas/codigo-bim-observatorio/tree/mapa-trenes-maplibre) |
-| 4 | [vias-trenes-postgis](https://github.com/smirallas/codigo-bim-observatorio/tree/vias-trenes-postgis) |
-| 5 | [filtros-fichas-trenes](https://github.com/smirallas/codigo-bim-observatorio/tree/filtros-fichas-trenes) |
-| 6 | [evaluar-datos-aproximaciones](https://github.com/smirallas/codigo-bim-observatorio/tree/evaluar-datos-aproximaciones) |
-| 7 | [carreteras-incidencias-dgt](https://github.com/smirallas/codigo-bim-observatorio/tree/carreteras-incidencias-dgt) |
-| 8 | [aviones-datos-abiertos](https://github.com/smirallas/codigo-bim-observatorio/tree/aviones-datos-abiertos) |
-| 9 | [mapas-meteorologicos](https://github.com/smirallas/codigo-bim-observatorio/tree/mapas-meteorologicos) |
+| 1 | [leer-datos-trenes](https://github.com/smirallas/codigo-bim-observatorio/tree/leer-datos-trenes-v2) |
+| 2 | [recoger-trenes-postgresql](https://github.com/smirallas/codigo-bim-observatorio/tree/recoger-trenes-postgresql-v2) |
+| 3 | [mapa-trenes-maplibre](https://github.com/smirallas/codigo-bim-observatorio/tree/mapa-trenes-maplibre-v2) |
+| 4 | [vias-trenes-postgis](https://github.com/smirallas/codigo-bim-observatorio/tree/vias-trenes-postgis-v2) |
+| 5 | [filtros-fichas-trenes](https://github.com/smirallas/codigo-bim-observatorio/tree/filtros-fichas-trenes-v2) |
+| 6 | [evaluar-datos-aproximaciones](https://github.com/smirallas/codigo-bim-observatorio/tree/evaluar-datos-aproximaciones-v2) |
+| 7 | [carreteras-incidencias-dgt](https://github.com/smirallas/codigo-bim-observatorio/tree/carreteras-incidencias-dgt-v2) |
+| 8 | [aviones-datos-abiertos](https://github.com/smirallas/codigo-bim-observatorio/tree/aviones-datos-abiertos-v2) |
+| 9 | [mapas-meteorologicos](https://github.com/smirallas/codigo-bim-observatorio/tree/mapas-meteorologicos-v2) |
