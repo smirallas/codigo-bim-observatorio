@@ -12,7 +12,7 @@ from uuid import uuid4
 from archive import Archive
 from collector import collect_one, public_url
 from demo import AT, layers
-from sources import ADAPTERS, dgt, rail, roads
+from sources import ADAPTERS, dgt, flights, rail, roads
 from server import Handler, bbox_value, layer_payload
 from engine import available, evaluate
 from scenarios import all_scenarios, iso
@@ -27,6 +27,22 @@ class AdapterTests(unittest.TestCase):
         self.assertIsNone(features[0]['properties']['observed_at'])
         self.assertIsNone(features[0]['properties']['speed_m_s'])
         self.assertIsNotNone(published)
+
+    def test_flight_position_time_is_not_last_contact(self):
+        state = ['abc', ' EXAMPLE ', 'ES', 1793542200, 1793542287, -3.8, 39.7, 8000, False, 200, 180, 0, None, 8100, None, False, 0]
+        features, published = flights(json.dumps({'time': 1793542287, 'states': [state]}), AT)
+        self.assertNotEqual(features[0]['properties']['observed_at'], features[0]['properties']['contact_at'])
+        state[5] = None
+        self.assertEqual(flights(json.dumps({'time': 1793542287, 'states': [state]}), AT)[0], [])
+
+    def test_flight_adsblol_units_and_relative_position_age(self):
+        feed = {'now': 1793542287000, 'ac': [{'hex': 'synthetic', 'flight': 'SIM', 'lat': 39.7, 'lon': -3.8, 'seen_pos': 10, 'seen': 2, 'gs': 100, 'alt_baro': 10000, 'type': 'adsb_icao'}]}
+        features, _ = flights(json.dumps(feed), AT)
+        prop = features[0]['properties']
+        self.assertAlmostEqual(prop['speed_m_s'], 51.44444444)
+        self.assertEqual(prop['altitude_m'], 3048)
+        self.assertNotEqual(prop['observed_at'], prop['contact_at'])
+        self.assertEqual(prop['time_basis'], 'feed_now_minus_seen_pos')
 
     def test_datex_uses_explicit_coordinates_and_keeps_missing_observation(self):
         xml = b'<situationPublication xmlns="urn:test"><publicationTime>2026-11-01T12:00:00Z</publicationTime><situationRecord id="r1"><latitude>40.1</latitude><longitude>-3.8</longitude></situationRecord><situationRecord id="without"><roadNumber>A-4</roadNumber></situationRecord></situationPublication>'
@@ -65,6 +81,17 @@ class AdapterTests(unittest.TestCase):
     def test_provenance_does_not_store_url_secrets(self):
         url = public_url('https://user:secret@example.org/data?bbox=1&api_key=secret&token=secret')
         self.assertEqual(url, 'https://example.org/data?bbox=1')
+
+    def test_oauth_credentials_are_not_in_report(self):
+        archive = unittest.mock.Mock()
+        archive.add.return_value = {'id': 1}
+        with patch.dict(os.environ, {'FLIGHTS_PROVIDER': 'opensky', 'OPENSKY_CLIENT_ID': 'fixture-client', 'OPENSKY_CLIENT_SECRET': 'fixture-secret'}), patch('collector.download') as fetch:
+            fetch.side_effect = [b'{"access_token":"fixture-token"}', b'{"time":1793542287,"states":[]}']
+            result = collect_one(archive, 'flights')
+        self.assertEqual(result['status'], 'ok')
+        self.assertEqual(fetch.call_args.args[1], {'Authorization': 'Bearer fixture-token'})
+        self.assertTrue(fetch.call_args.args[0].startswith('https://opensky-network.org/'))
+        self.assertNotIn('fixture-secret', json.dumps(result))
 
 class DatabaseTests(unittest.TestCase):
 

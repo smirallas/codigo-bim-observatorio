@@ -14,7 +14,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from archive import Archive
 from sources import ADAPTERS, CATALOG
-URLS = {'rail': 'https://gtfsrt.renfe.com/vehicle_positions_LD.json', 'dgt': os.getenv('DGT_URL', 'https://nap.dgt.es/datex2/v3/dgt/SituationPublication/datex2_v37.xml'), 'roads': os.getenv('ROADS_URL') or 'https://www.openstreetmap.org/api/0.6/map?bbox=-3.705,40.414,-3.695,40.420'}
+URLS = {'rail': 'https://gtfsrt.renfe.com/vehicle_positions_LD.json', 'dgt': os.getenv('DGT_URL', 'https://nap.dgt.es/datex2/v3/dgt/SituationPublication/datex2_v37.xml'), 'flights': 'https://opensky-network.org/api/states/all?lamin=38&lomin=-5&lamax=41&lomax=-2', 'roads': os.getenv('ROADS_URL') or 'https://www.openstreetmap.org/api/0.6/map?bbox=-3.705,40.414,-3.695,40.420'}
 MAX_BYTES = 15000000
 FLIGHT_URLS = {'adsblol': 'https://api.adsb.lol/v2/point/39.7/-3.8/100', 'opensky': 'https://opensky-network.org/api/states/all?lamin=38&lomin=-5&lamax=41&lomax=-2'}
 
@@ -54,6 +54,8 @@ def collect_one(archive, source):
             return {'source': 'schedule', 'status': 'ok', **import_schedule(archive)}
         url = URLS[source]
         provider = os.getenv('FLIGHTS_PROVIDER', 'adsblol')
+        if source == 'flights':
+            url = FLIGHT_URLS[provider]
         if not url:
             archive.attempt(source, 'not_configured')
             return {'source': source, 'status': 'not_configured'}

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import json
 import math
 import xml.etree.ElementTree as ET
-CATALOG = {'rail': {'title': 'Posiciones ferroviarias', 'group': 'Ferrocarril', 'color': '#136b60', 'kind': 'observation', 'ttl': 120, 'attribution': 'Renfe Data · CC BY 4.0', 'url': 'https://data.renfe.com/es/dataset/posicion-vehiculos-av-ld-md'}, 'roads': {'title': 'Red viaria', 'group': 'Carreteras', 'color': '#77736a', 'kind': 'reference', 'ttl': 2592000, 'attribution': '© OpenStreetMap contributors · ODbL (o licencia del archivo importado)', 'url': 'https://www.openstreetmap.org/copyright'}, 'dgt': {'title': 'Incidencias DGT', 'group': 'Carreteras', 'color': '#b96420', 'kind': 'observation', 'ttl': 600, 'attribution': 'DGT · NAP · DATEX II 3.7 · Creative Commons Attribution', 'url': 'https://nap.dgt.es/es/dataset/incidencias-dgt-datex2-v3-7'}}
+CATALOG = {'rail': {'title': 'Posiciones ferroviarias', 'group': 'Ferrocarril', 'color': '#136b60', 'kind': 'observation', 'ttl': 120, 'attribution': 'Renfe Data · CC BY 4.0', 'url': 'https://data.renfe.com/es/dataset/posicion-vehiculos-av-ld-md'}, 'roads': {'title': 'Red viaria', 'group': 'Carreteras', 'color': '#77736a', 'kind': 'reference', 'ttl': 2592000, 'attribution': '© OpenStreetMap contributors · ODbL (o licencia del archivo importado)', 'url': 'https://www.openstreetmap.org/copyright'}, 'dgt': {'title': 'Incidencias DGT', 'group': 'Carreteras', 'color': '#b96420', 'kind': 'observation', 'ttl': 600, 'attribution': 'DGT · NAP · DATEX II 3.7 · Creative Commons Attribution', 'url': 'https://nap.dgt.es/es/dataset/incidencias-dgt-datex2-v3-7'}, 'flights': {'title': 'Posiciones de aeronaves', 'group': 'Vuelos', 'color': '#5e58a3', 'kind': 'observation', 'ttl': 120, 'attribution': 'ADSB.lol · ODbL 1.0 (OpenSky opcional bajo sus condiciones)', 'url': 'https://www.adsb.lol/about'}}
 
 def timestamp(value):
     try:
@@ -40,6 +40,33 @@ def rail(body, received):
             feature['properties'].update(entity_id=entity.get('id'), trip_id=trip.get('tripId') or trip.get('trip_id'), operator=None, operator_basis=None, route_id=trip.get('routeId') or trip.get('route_id'), start_date=trip.get('startDate') or trip.get('start_date'), stop_id=vehicle.get('stopId') or vehicle.get('stop_id'), current_status=vehicle.get('currentStatus') or vehicle.get('current_status'), stop_sequence=vehicle.get('currentStopSequence') or vehicle.get('current_stop_sequence'), bearing_deg=position.get('bearing'), odometer_m=position.get('odometer'), occupancy=vehicle.get('occupancyStatus') or vehicle.get('occupancy_status'))
             features.append(feature)
     return (features, timestamp(feed.get('header', {}).get('timestamp')))
+
+def flights(body, received):
+    feed = json.loads(body)
+    features = []
+    if 'ac' in feed:
+        clock = feed.get('now')
+        if not numeric(clock):
+            raise ValueError('Falta el reloj del feed')
+        clock = clock / 1000 if clock > 100000000000 else clock
+        for state in feed['ac']:
+            position_age = state.get('seen_pos')
+            contact_age = state.get('seen')
+            speed = state.get('gs')
+            altitude = state.get('alt_baro')
+            feature = point(state.get('lon'), state.get('lat'), {'id': state.get('hex'), 'label': str(state.get('flight') or state.get('hex', '')).strip(), 'observed_at': timestamp(clock - position_age) if numeric(position_age) and position_age >= 0 else None, 'contact_at': timestamp(clock - contact_age) if numeric(contact_age) and contact_age >= 0 else None, 'time_basis': 'feed_now_minus_seen_pos', 'received_at': received, 'speed_m_s': speed * 0.5144444444 if numeric(speed) and speed >= 0 else None, 'altitude_m': altitude * 0.3048 if numeric(altitude) else None, 'altitude_basis': 'barometric', 'heading_deg': state.get('track'), 'kind': 'observation', 'position_basis': state.get('type'), 'aircraft_type': state.get('t'), 'registration': state.get('r'), 'aircraft_category': state.get('category'), 'operator': state.get('operator'), 'source': 'flights'})
+            if feature:
+                features.append(feature)
+        return (features, timestamp(clock))
+    if not isinstance(feed.get('states') or [], list):
+        raise ValueError('states no es una lista')
+    for state in feed.get('states') or []:
+        if not isinstance(state, list) or len(state) < 17:
+            continue
+        feature = point(state[5], state[6], {'id': state[0], 'label': str(state[1] or state[0]).strip(), 'observed_at': timestamp(state[3]), 'contact_at': timestamp(state[4]), 'received_at': received, 'speed_m_s': state[9], 'altitude_m': state[7], 'heading_deg': state[10], 'on_ground': state[8], 'kind': 'observation', 'source': 'flights'})
+        if feature:
+            features.append(feature)
+    return (features, timestamp(feed.get('time')))
 
 def dgt(body, received):
     if b'<!DOCTYPE' in body.upper() or b'<!ENTITY' in body.upper():
@@ -96,4 +123,4 @@ def roads(body, received):
         properties = item.get('properties') or {}
         features.append({'type': 'Feature', 'geometry': geometry, 'properties': {'id': str(item.get('id', index)), 'label': str(properties.get('name') or properties.get('ref') or 'Tramo'), 'observed_at': None, 'received_at': received, 'source': 'roads', 'kind': 'reference'}})
     return (features, None)
-ADAPTERS = {'rail': rail, 'dgt': dgt, 'roads': roads}
+ADAPTERS = {'rail': rail, 'dgt': dgt, 'flights': flights, 'roads': roads}
