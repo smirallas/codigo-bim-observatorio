@@ -1,7 +1,7 @@
-# CÃ³digo de cada artÃ­culo
+# Código de cada artículo
 
-Las etiquetas conservan el cÃ³digo al terminar cada entrega. `main` puede avanzar. Descargar ZIP desde Code â†’ Download ZIP en la etiqueta correspondiente.
+Las etiquetas conservan el código al terminar cada entrega. `main` puede avanzar. Descargar ZIP desde Code → Download ZIP en la etiqueta correspondiente.
 
-| Entrega | VersiÃ³n |
+| Entrega | Versión |
 |---|---|
-| 1 | [leer-datos-trenes](https://github.com/smirallas/codigo-bim-observatorio/tree/leer-datos-trenes) |
+| 1 | [leer-datos-trenes](https://github.com/smirallas/codigo-bim-observatorio/tree/leer-datos-trenes-v2) |
