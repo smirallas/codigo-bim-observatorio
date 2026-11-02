@@ -1,8 +1,8 @@
-# CÃ³digo BIM Â· recoger-trenes-postgresql
+# Código BIM · recoger-trenes-postgresql
 
-Entrega 2 de la construcciÃ³n del observatorio de datos abiertos.
+Entrega 2 de la construcción del observatorio de datos abiertos.
 
-Requisitos: Docker Compose y Python 3.12 para crear la configuraciÃ³n. Desde `v2`:
+Requisitos: Docker Compose y Python 3.12 para crear la configuración. Desde `v2`:
 
     python init_env.py
     docker compose up -d --wait db
@@ -12,6 +12,6 @@ Requisitos: Docker Compose y Python 3.12 para crear la configuraciÃ³n. Desde `
 
 Iniciar el recolector con `docker compose --profile live up -d collector`. No hay visor en esta entrega.
 
-No ejecutar otra etiqueta contra un volumen con migraciones posteriores sin revisar compatibilidad. Para comparar entregas en paralelo, utilizar un proyecto Compose distinto (`-p nombre`) y un puerto `LAB_PORT` libre; no borrar volÃºmenes existentes.
+No ejecutar otra etiqueta contra un volumen con migraciones posteriores sin revisar compatibilidad. Para comparar entregas en paralelo, utilizar un proyecto Compose distinto (`-p nombre`) y un puerto `LAB_PORT` libre; no borrar volúmenes existentes.
 
-[Versiones de los artÃ­culos](VERSIONES.md). CÃ³digo propio MIT; conservar las licencias de bibliotecas y condiciones de las fuentes. No distribuir `.env`, datos recolectados ni copias de bases. Despliegue remoto manual posterior.
+[Versiones de los artículos](VERSIONES.md). Código propio MIT; conservar las licencias de bibliotecas y condiciones de las fuentes. No distribuir `.env`, datos recolectados ni copias de bases. Despliegue remoto manual posterior.
