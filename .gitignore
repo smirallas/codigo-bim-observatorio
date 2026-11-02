@@ -1,4 +1,4 @@
-# ConfiguraciÃ³n privada y datos generados
+# Configuración privada y datos generados
 .env
 .env.*
 !.env.example
