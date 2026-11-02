@@ -1,0 +1,8 @@
+{
+  "header": {"gtfsRealtimeVersion": "2.0", "timestamp": "1793520000"},
+  "entity": [
+    {"id": "sintetico-a", "vehicle": {"timestamp": "1793519995", "position": {"latitude": 39.5, "longitude": -3.5, "speed": 0}}},
+    {"id": "sintetico-b", "vehicle": {"position": {"latitude": 39.6, "longitude": -3.6}}},
+    {"id": "sintetico-c", "vehicle": {"timestamp": "sin-hora", "position": {"latitude": 120, "longitude": -3.7, "speed": -2}}}
+  ]
+}

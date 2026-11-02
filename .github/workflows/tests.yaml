@@ -1,0 +1,37 @@
+name: Pruebas
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:17-3.6
+        env:
+          POSTGRES_DB: observatorio_test
+          POSTGRES_USER: observatorio
+          POSTGRES_PASSWORD: fixture-ci-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U observatorio -d observatorio_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Primera lectura
+        run: python -m unittest discover -s primeros-pasos/tests -v
+        env:
+          PYTHONPATH: primeros-pasos
+      - name: PostgreSQL y adaptadores
+        if: hashFiles('v2/requirements.txt') != ''
+        run: |
+          python -m pip install -r v2/requirements.txt
+          cd v2
+          python -m unittest discover -s tests -v
+        env:
+          DATABASE_URL: postgresql://observatorio:fixture-ci-password@localhost:5432/observatorio_test
+          PYTHONPATH: ${{ github.workspace }}

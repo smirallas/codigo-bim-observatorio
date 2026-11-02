@@ -1,0 +1,6 @@
+*
+!capturar.py
+!ejemplos/
+!ejemplos/*.json
+!tests/
+!tests/*.py
