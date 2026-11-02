@@ -1,0 +1,76 @@
+name: codigo-bim-observatorio
+services:
+  db:
+    image: postgis/postgis:17-3.6
+    environment:
+      POSTGRES_DB: observatorio
+      POSTGRES_USER: observatorio
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Ejecuta primero python init_env.py}
+    volumes:
+      - observatorio-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U observatorio -d observatorio"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    mem_limit: 384m
+  web:
+    profiles: [tools]
+    image: codigo-bim-observatorio:recoger-trenes-postgresql
+    build:
+      context: ..
+      dockerfile: v2/Dockerfile
+    environment: &app-env
+      DATABASE_URL: postgresql://observatorio:${POSTGRES_PASSWORD}@db:5432/observatorio
+      RAIL_INTERVAL: ${RAIL_INTERVAL:-60}
+      DGT_INTERVAL: ${DGT_INTERVAL:-120}
+      FLIGHTS_INTERVAL: ${FLIGHTS_INTERVAL:-60}
+      WEATHER_INTERVAL: ${WEATHER_INTERVAL:-10800}
+      WEATHER_MAPS_INTERVAL: ${WEATHER_MAPS_INTERVAL:-3600}
+      REFERENCE_CACHE: /var/cache/observatorio/ign
+      WEATHER_MAP_CACHE: /var/cache/observatorio/weather
+    volumes:
+      - cartografia-cache:/var/cache/observatorio
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${LAB_PORT:-8042}:8027"
+    read_only: true
+    tmpfs: [/tmp:size=64m]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    restart: unless-stopped
+    mem_limit: 256m
+  collector:
+    image: codigo-bim-observatorio:recoger-trenes-postgresql
+    command: [python, collector.py]
+    healthcheck:
+      test: [CMD, python, -c, "import os,time; assert time.time()-os.path.getmtime('/tmp/collector-heartbeat')<90"]
+      interval: 30s
+      start_period: 30s
+      timeout: 5s
+      retries: 3
+    environment:
+      <<: *app-env
+      ENABLED_SOURCES: ${ENABLED_SOURCES:-rail}
+      COLLECT_INTERVAL: ${COLLECT_INTERVAL:-900}
+      OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:-}
+      OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:-}
+      FLIGHTS_PROVIDER: ${FLIGHTS_PROVIDER:-adsblol}
+      DGT_URL: ${DGT_URL:-https://nap.dgt.es/datex2/v3/dgt/SituationPublication/datex2_v37.xml}
+      ROADS_URL: ${ROADS_URL:-}
+    profiles: [live]
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp:size=32m]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 256m
+    restart: unless-stopped
+volumes:
+  observatorio-pg:
+  cartografia-cache:
