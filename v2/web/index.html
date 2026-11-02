@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Datos en su contexto · Código BIM</title><link rel="stylesheet" href="maplibre-gl.css"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="inspector.css"><link rel="stylesheet" href="shell.css"><link rel="stylesheet" href="domains.css"><script type="module" src="app.js"></script></head>
+<body><main class="app-shell">
+<section class="map-panel" aria-label="Mapa"><div id="map"></div><aside id="selection-panel" aria-label="Ficha del elemento seleccionado" hidden><div class="selection-header"><p id="selection-source" class="eyebrow"></p><button id="selection-close" aria-label="Cerrar ficha">×</button></div><h2 id="selection-title"></h2><div id="selection-body"></div><section id="selection-network" aria-live="polite"></section></aside></section>
+<button id="panel-toggle" aria-controls="controls" aria-expanded="true">☰ Capas y datos</button>
+<aside id="controls" class="control-panel" aria-label="Controles del visor">
+<header><p class="eyebrow">CÓDIGO BIM · DATOS ABIERTOS</p><h1>Datos en contexto</h1></header><nav id="domain-tabs" role="tablist" aria-label="Ámbito del mapa"></nav><section id="domain-panel" role="tabpanel" aria-label="Vista seleccionada"><h2 id="domain-title">Trenes</h2><p id="domain-description" class="small"></p><label class="domain-master"><input id="domain-enabled" type="checkbox" checked><span id="domain-enabled-label">Mostrar trenes</span></label>
+<p id="live-status" class="small" role="status">Actualización automática cada 30 segundos.</p><p id="map-error" role="status" class="error" hidden></p>
+<section aria-label="Capas de la vista"><h3>Capas de esta vista</h3><div id="references"></div><div id="weather-controls"></div><div id="layers"></div><button id="fit">Encuadrar datos</button></section>
+<footer>MapLibre GL JS · <a href="maplibre-LICENSE.txt">BSD-3-Clause</a>. Natural Earth · dominio público. Código BIM · MIT.</footer>
+</section></aside><div id="map-attribution">© IGN-CNIG · Renfe · DGT · ADSB.lol · DWD · MET Norway · Natural Earth</div>
+</main></body></html>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="170" viewBox="0 0 280 170" role="img" aria-labelledby="title desc">
+<title id="title">Cómo leer las barbas de viento</title><desc id="desc">Media barba: 5 nudos. Barba completa: 10 nudos. Banderín: 50 nudos. Se combinan y se redondean a cinco nudos. La vara apunta de dónde viene el viento.</desc>
+<rect width="280" height="170" rx="6" fill="#fffdf6"/>
+<g fill="#183b39" font-family="system-ui,sans-serif" font-size="11"><text x="12" y="20" font-weight="700">Velocidad del viento · escala de barbas</text>
+<text x="100" y="48">5 kt ≈ 2,6 m/s · 9,3 km/h</text><text x="100" y="85">10 kt ≈ 5,1 m/s · 18,5 km/h</text><text x="100" y="122">50 kt ≈ 25,7 m/s · 92,6 km/h</text>
+<text x="12" y="148" font-size="10">Se suman las barbas y los banderines.</text><text x="12" y="162" font-size="10">La vara apunta de dónde viene el viento.</text></g>
+<g stroke="#183b39" stroke-width="2" fill="none"><path d="M15 48H80M70 48l-9-11"/><path d="M15 85H80l-17-20"/><path d="M15 122H80"/></g><path d="M80 122l-18-21v21Z" fill="#183b39"/>
+</svg>

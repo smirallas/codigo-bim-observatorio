@@ -13,6 +13,7 @@ from archive import Archive
 from collector import collect_one, public_url
 from demo import AT, layers
 from sources import ADAPTERS, rail
+from server import Handler, bbox_value, layer_payload
 from unittest.mock import patch
 NOW = datetime.now(timezone.utc)
 
@@ -24,6 +25,11 @@ class AdapterTests(unittest.TestCase):
         self.assertIsNone(features[0]['properties']['observed_at'])
         self.assertIsNone(features[0]['properties']['speed_m_s'])
         self.assertIsNotNone(published)
+
+    def test_bbox_rejects_nan_and_reversed_bounds(self):
+        for value in ('nan,0,1,2', '3,4,1,2', '-200,0,1,2', '0,0,1'):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                bbox_value(value)
 
     def test_collector_failure_keeps_other_sources_independent(self):
         archive = unittest.mock.Mock()
@@ -101,5 +107,48 @@ class DatabaseTests(unittest.TestCase):
         self.archive.prune(days=7, max_per_source=2, source=self.source)
         with self.archive.connect() as db:
             self.assertEqual(db.execute('SELECT count(*) AS total FROM captures WHERE source=%s', (self.source,)).fetchone()['total'], 2)
+
+class HTTPTests(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+        cls.base = f'http://127.0.0.1:{cls.server.server_port}/v2'
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.thread.join()
+
+    def get(self, path):
+        return urlopen(self.base + path, timeout=5)
+
+    def test_health_and_real_layers_only(self):
+        with self.get('/api/health') as response:
+            self.assertEqual(json.load(response)['database'], 'postgresql-postgis')
+            self.assertIsNone(response.headers.get('Set-Cookie'))
+        with patch.object(Archive, 'latest', return_value=None):
+            for source in ADAPTERS:
+                with self.get('/api/layers/' + source) as response:
+                    data = json.load(response)
+                    self.assertEqual(data['status'], 'unavailable')
+                    self.assertEqual(data['features'], [])
+
+    def test_private_paths_and_bad_parameters(self):
+        for path, status in [('/.env', 404), ('/../archive.py', 404), ('/api/layers/absent', 404), ('/api/layers/rail?bbox=nan,0,1,2', 400), ('/api/layers/rail?mode=whatever', 400), ('/api/replay?scenario=approach&step=99', 404), ('/api/scenarios', 404), ('/api/layers/rail?mode=demo', 400), ('/api/layers/rail?at=2026-11-01T00:00:00Z', 400), ('/api/layers/rail?at=', 400), ('/api/layers/weather?valid_at=2026-11-01T00:00:00Z', 400), ('/api/features/rail/1/0?at=2026-11-01T00:00:00Z', 400)]:
+            with self.subTest(path=path), self.assertRaises(HTTPError) as error:
+                self.get(path)
+            self.assertEqual(error.exception.code, status)
+
+    def test_embedding_policy_and_local_map_assets(self):
+        with self.get('/') as response:
+            self.assertIn('https://codigobim.com', response.headers['Content-Security-Policy'])
+            self.assertIn('MapLibre', response.read().decode())
+        for asset in ('maplibre-gl.mjs', 'maplibre-gl-worker.mjs', 'maplibre-gl-shared.mjs', 'maplibre-gl.css', 'app.js', 'domains.js', 'domains.css'):
+            with self.get('/' + asset) as response:
+                self.assertEqual(response.status, 200)
 if __name__ == '__main__':
     unittest.main()

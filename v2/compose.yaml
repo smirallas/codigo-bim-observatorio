@@ -16,8 +16,7 @@ services:
     restart: unless-stopped
     mem_limit: 384m
   web:
-    profiles: [tools]
-    image: codigo-bim-observatorio:recoger-trenes-postgresql
+    image: codigo-bim-observatorio:mapa-trenes-maplibre
     build:
       context: ..
       dockerfile: v2/Dockerfile
@@ -44,7 +43,7 @@ services:
     restart: unless-stopped
     mem_limit: 256m
   collector:
-    image: codigo-bim-observatorio:recoger-trenes-postgresql
+    image: codigo-bim-observatorio:mapa-trenes-maplibre
     command: [python, collector.py]
     healthcheck:
       test: [CMD, python, -c, "import os,time; assert time.time()-os.path.getmtime('/tmp/collector-heartbeat')<90"]

@@ -7,4 +7,5 @@ USER lab
 WORKDIR /app/v2
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app
 EXPOSE 8027
-CMD ["python","lab.py","migrate"]
+HEALTHCHECK --interval=10s --timeout=5s CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8027/v2/api/health',timeout=3)"
+CMD ["python","server.py"]

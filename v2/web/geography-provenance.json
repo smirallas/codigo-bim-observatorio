@@ -1,0 +1,7 @@
+{
+  "source": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_110m_admin_0_countries.geojson",
+  "original_sha256": "6866c877d39cba9c357620878839b336d569f8c662d3cfab4cb1dbe2d39c977f",
+  "license": "public domain",
+  "terms": "https://www.naturalearthdata.com/about/terms-of-use/",
+  "modification": "Selecci\u00f3n de pa\u00edses y campos para referencia continental"
+}
