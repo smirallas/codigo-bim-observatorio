@@ -1,6 +1,6 @@
-# CÃ³digo BIM Â· aviones-datos-abiertos
+# CÃ³digo BIM Â· mapas-meteorologicos
 
-Entrega 8 de la construcciÃ³n del observatorio de datos abiertos.
+Entrega 9 de la construcciÃ³n del observatorio de datos abiertos.
 
 Requisitos: Docker Compose y Python 3.12 para crear la configuraciÃ³n. Desde `v2`:
 

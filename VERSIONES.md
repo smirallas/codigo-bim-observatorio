@@ -12,3 +12,4 @@ Las etiquetas conservan el cÃ³digo al terminar cada entrega. `main` puede avan
 | 6 | [evaluar-datos-aproximaciones](https://github.com/smirallas/codigo-bim-observatorio/tree/evaluar-datos-aproximaciones) |
 | 7 | [carreteras-incidencias-dgt](https://github.com/smirallas/codigo-bim-observatorio/tree/carreteras-incidencias-dgt) |
 | 8 | [aviones-datos-abiertos](https://github.com/smirallas/codigo-bim-observatorio/tree/aviones-datos-abiertos) |
+| 9 | [mapas-meteorologicos](https://github.com/smirallas/codigo-bim-observatorio/tree/mapas-meteorologicos) |

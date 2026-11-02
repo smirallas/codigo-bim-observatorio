@@ -14,7 +14,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from archive import Archive
 from sources import ADAPTERS, CATALOG
-URLS = {'rail': 'https://gtfsrt.renfe.com/vehicle_positions_LD.json', 'dgt': os.getenv('DGT_URL', 'https://nap.dgt.es/datex2/v3/dgt/SituationPublication/datex2_v37.xml'), 'flights': 'https://opensky-network.org/api/states/all?lamin=38&lomin=-5&lamax=41&lomax=-2', 'roads': os.getenv('ROADS_URL') or 'https://www.openstreetmap.org/api/0.6/map?bbox=-3.705,40.414,-3.695,40.420'}
+URLS = {'rail': 'https://gtfsrt.renfe.com/vehicle_positions_LD.json', 'dgt': os.getenv('DGT_URL', 'https://nap.dgt.es/datex2/v3/dgt/SituationPublication/datex2_v37.xml'), 'flights': 'https://opensky-network.org/api/states/all?lamin=38&lomin=-5&lamax=41&lomax=-2', 'weather': 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=39.7000&lon=-3.8000', 'roads': os.getenv('ROADS_URL') or 'https://www.openstreetmap.org/api/0.6/map?bbox=-3.705,40.414,-3.695,40.420'}
 MAX_BYTES = 15000000
 FLIGHT_URLS = {'adsblol': 'https://api.adsb.lol/v2/point/39.7/-3.8/100', 'opensky': 'https://opensky-network.org/api/states/all?lamin=38&lomin=-5&lamax=41&lomax=-2'}
 
@@ -45,6 +45,9 @@ def download(url, headers=None, data=None, info=None):
 
 def collect_one(archive, source):
     try:
+        if source == 'weather_maps':
+            from weather_maps import collect_metadata
+            return collect_metadata(archive)
         if source == 'schedule':
             with archive.connect() as db:
                 previous = db.execute("SELECT id FROM schedule_imports WHERE received_at>now()-interval '6 hours' ORDER BY received_at DESC LIMIT 1").fetchone()
@@ -60,6 +63,15 @@ def collect_one(archive, source):
             archive.attempt(source, 'not_configured')
             return {'source': source, 'status': 'not_configured'}
         headers = {}
+        if source == 'weather':
+            previous = archive.latest(source)
+            metadata = previous.get('metadata', {}) if previous else {}
+            expires = metadata.get('expires')
+            if expires and datetime.now(timezone.utc) < parsedate_to_datetime(expires):
+                archive.attempt(source, 'cached')
+                return {'source': source, 'status': 'cached'}
+            if metadata.get('last-modified'):
+                headers['If-Modified-Since'] = metadata['last-modified']
         if source == 'flights' and provider == 'opensky' and os.getenv('OPENSKY_CLIENT_ID') and os.getenv('OPENSKY_CLIENT_SECRET'):
             payload = urllib.parse.urlencode({'grant_type': 'client_credentials', 'client_id': os.environ['OPENSKY_CLIENT_ID'], 'client_secret': os.environ['OPENSKY_CLIENT_SECRET']}).encode()
             token = json.loads(download('https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token', {'Content-Type': 'application/x-www-form-urlencoded'}, payload))['access_token']

@@ -76,7 +76,7 @@ map.on('load',async()=>{
    const settings=document.createElement('details');settings.className='layer-settings';const settingsTitle=document.createElement('summary');settingsTitle.textContent='Opciones de capa';settings.append(settingsTitle,tools);const attribution=document.createElement('p');text(attribution,layer.attribution);settings.append(attribution);row.append(settings);$('layers').append(row);
    map.on('mouseenter','draw-'+layer.id,()=>{map.getCanvas().style.cursor='pointer';});map.on('mouseleave','draw-'+layer.id,()=>{map.getCanvas().style.cursor='';});
   }
-  reorder();detail=inspector(map,catalog);categoryControls=categories(map,catalog,{onChange:()=>detail.close()});
+  reorder();detail=inspector(map,catalog);categoryControls=categories(map,catalog,{onChange:()=>detail.close()});if(catalog.some(l=>l.id==='weather'))weatherControls=weatherMaps(map);
   navigation=domains(map,catalog,{onChange:async(domain,{navigation:changed})=>{await render();if(changed&&navigation.current().id===domain.id)fit();}});navigation.sync();
   map.on('click',event=>{const clicked=map.queryRenderedFeatures(event.point,{layers:catalog.map(l=>'draw-'+l.id)})[0];if(!clicked)return;const source=clicked.source;const feature=cache.get(source)?.features.find(f=>clicked.properties.feature_key?f.properties.feature_key===clicked.properties.feature_key:(f.properties.id||f.properties.train_id)===(clicked.properties.id||clicked.properties.train_id));if(feature)detail.select(source,feature,{focus:false});});
   $('fit').onclick=fit;

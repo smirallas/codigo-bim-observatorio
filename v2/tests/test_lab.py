@@ -12,7 +12,7 @@ from uuid import uuid4
 from archive import Archive
 from collector import collect_one, public_url
 from demo import AT, layers
-from sources import ADAPTERS, dgt, flights, rail, roads
+from sources import ADAPTERS, dgt, flights, rail, roads, weather
 from server import Handler, bbox_value, layer_payload
 from engine import available, evaluate
 from scenarios import all_scenarios, iso
@@ -43,6 +43,27 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(prop['altitude_m'], 3048)
         self.assertNotEqual(prop['observed_at'], prop['contact_at'])
         self.assertEqual(prop['time_basis'], 'feed_now_minus_seen_pos')
+
+    def test_weather_is_a_forecast_with_validity(self):
+        body = json.dumps({'latitude': 39.7, 'longitude': -3.8, 'generationtime_ms': 25, 'hourly': {'time': [1793542200], 'temperature_2m': [14], 'precipitation': [2], 'wind_speed_10m': [5]}})
+        features, published = weather(body, AT)
+        self.assertIsNone(published)
+        self.assertIsNone(features[0]['properties']['observed_at'])
+        self.assertEqual(features[0]['properties']['kind'], 'forecast')
+
+    def test_met_forecast_units_and_issuance(self):
+        body = json.dumps({'geometry': {'coordinates': [-3.8, 39.7, 0]}, 'properties': {'meta': {'updated_at': AT}, 'timeseries': [{'time': AT, 'data': {'instant': {'details': {'air_temperature': 14, 'wind_speed': 10}}}}]}})
+        features, published = weather(body, AT)
+        self.assertEqual(features[0]['properties']['wind_km_h'], 36)
+        self.assertIsNone(features[0]['properties']['precipitation_mm'])
+        self.assertEqual(published, AT)
+
+    def test_weather_expiry_avoids_another_provider_request(self):
+        archive = unittest.mock.Mock()
+        archive.latest.return_value = {'metadata': {'expires': 'Mon, 01 Nov 2094 18:00:00 GMT'}}
+        with patch('collector.download') as fetch:
+            self.assertEqual(collect_one(archive, 'weather')['status'], 'cached')
+        fetch.assert_not_called()
 
     def test_datex_uses_explicit_coordinates_and_keeps_missing_observation(self):
         xml = b'<situationPublication xmlns="urn:test"><publicationTime>2026-11-01T12:00:00Z</publicationTime><situationRecord id="r1"><latitude>40.1</latitude><longitude>-3.8</longitude></situationRecord><situationRecord id="without"><roadNumber>A-4</roadNumber></situationRecord></situationPublication>'
@@ -157,6 +178,16 @@ class DatabaseTests(unittest.TestCase):
         self.archive.prune(days=7, max_per_source=2, source=self.source)
         with self.archive.connect() as db:
             self.assertEqual(db.execute('SELECT count(*) AS total FROM captures WHERE source=%s', (self.source,)).fetchone()['total'], 2)
+
+    def test_forecast_validity_can_be_future_without_future_capture(self):
+        feature = deepcopy(layers()['weather'][0])
+        valid = NOW + timedelta(hours=1)
+        feature['properties']['valid_at'] = valid.isoformat()
+        mocked = unittest.mock.Mock()
+        mocked.latest.return_value = {'features': [feature], 'received_at': NOW.isoformat(), 'kind': 'forecast'}
+        result = layer_payload('weather', {'mode': ['archive'], 'valid_at': [valid.isoformat()]}, mocked)
+        self.assertEqual(len(result['features']), 1)
+        self.assertEqual(result['features'][0]['properties']['freshness'], 'forecast')
 
 class RuleTests(unittest.TestCase):
 

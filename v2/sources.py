@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import json
 import math
 import xml.etree.ElementTree as ET
-CATALOG = {'rail': {'title': 'Posiciones ferroviarias', 'group': 'Ferrocarril', 'color': '#136b60', 'kind': 'observation', 'ttl': 120, 'attribution': 'Renfe Data · CC BY 4.0', 'url': 'https://data.renfe.com/es/dataset/posicion-vehiculos-av-ld-md'}, 'roads': {'title': 'Red viaria', 'group': 'Carreteras', 'color': '#77736a', 'kind': 'reference', 'ttl': 2592000, 'attribution': '© OpenStreetMap contributors · ODbL (o licencia del archivo importado)', 'url': 'https://www.openstreetmap.org/copyright'}, 'dgt': {'title': 'Incidencias DGT', 'group': 'Carreteras', 'color': '#b96420', 'kind': 'observation', 'ttl': 600, 'attribution': 'DGT · NAP · DATEX II 3.7 · Creative Commons Attribution', 'url': 'https://nap.dgt.es/es/dataset/incidencias-dgt-datex2-v3-7'}, 'flights': {'title': 'Posiciones de aeronaves', 'group': 'Vuelos', 'color': '#5e58a3', 'kind': 'observation', 'ttl': 120, 'attribution': 'ADSB.lol · ODbL 1.0 (OpenSky opcional bajo sus condiciones)', 'url': 'https://www.adsb.lol/about'}}
+CATALOG = {'rail': {'title': 'Posiciones ferroviarias', 'group': 'Ferrocarril', 'color': '#136b60', 'kind': 'observation', 'ttl': 120, 'attribution': 'Renfe Data · CC BY 4.0', 'url': 'https://data.renfe.com/es/dataset/posicion-vehiculos-av-ld-md'}, 'roads': {'title': 'Red viaria', 'group': 'Carreteras', 'color': '#77736a', 'kind': 'reference', 'ttl': 2592000, 'attribution': '© OpenStreetMap contributors · ODbL (o licencia del archivo importado)', 'url': 'https://www.openstreetmap.org/copyright'}, 'dgt': {'title': 'Incidencias DGT', 'group': 'Carreteras', 'color': '#b96420', 'kind': 'observation', 'ttl': 600, 'attribution': 'DGT · NAP · DATEX II 3.7 · Creative Commons Attribution', 'url': 'https://nap.dgt.es/es/dataset/incidencias-dgt-datex2-v3-7'}, 'flights': {'title': 'Posiciones de aeronaves', 'group': 'Vuelos', 'color': '#5e58a3', 'kind': 'observation', 'ttl': 120, 'attribution': 'ADSB.lol · ODbL 1.0 (OpenSky opcional bajo sus condiciones)', 'url': 'https://www.adsb.lol/about'}, 'weather': {'title': 'Predicción meteorológica', 'group': 'Meteorología', 'color': '#327dac', 'kind': 'forecast', 'ttl': 10800, 'attribution': 'MET Norway · Locationforecast · CC BY 4.0', 'url': 'https://api.met.no/doc/TermsOfService'}}
 
 def timestamp(value):
     try:
@@ -68,6 +68,29 @@ def flights(body, received):
             features.append(feature)
     return (features, timestamp(feed.get('time')))
 
+def weather(body, received):
+    feed = json.loads(body)
+    features = []
+    if 'properties' in feed and 'timeseries' in feed['properties']:
+        lon, lat = feed['geometry']['coordinates'][:2]
+        for item in feed['properties']['timeseries']:
+            values = item['data']['instant']['details']
+            wind = values.get('wind_speed')
+            feature = point(lon, lat, {'id': 'weather-' + item['time'], 'label': 'Predicción MET Norway', 'observed_at': None, 'valid_at': item['time'], 'received_at': received, 'temperature_c': values.get('air_temperature'), 'precipitation_mm': item['data'].get('next_1_hours', {}).get('details', {}).get('precipitation_amount'), 'wind_km_h': wind * 3.6 if numeric(wind) else None, 'kind': 'forecast', 'source': 'weather'})
+            if feature:
+                features.append(feature)
+        return (features, feed['properties']['meta'].get('updated_at'))
+    hourly = feed['hourly']
+    for index, valid in enumerate(hourly['time']):
+
+        def at(key):
+            values = hourly.get(key, [])
+            return values[index] if index < len(values) else None
+        feature = point(feed['longitude'], feed['latitude'], {'id': 'weather-' + str(valid), 'label': 'Predicción del modelo', 'observed_at': None, 'valid_at': timestamp(valid) if isinstance(valid, (int, float)) else valid + '+00:00', 'received_at': received, 'temperature_c': at('temperature_2m'), 'precipitation_mm': at('precipitation'), 'wind_km_h': at('wind_speed_10m'), 'kind': 'forecast', 'source': 'weather'})
+        if feature:
+            features.append(feature)
+    return (features, None)
+
 def dgt(body, received):
     if b'<!DOCTYPE' in body.upper() or b'<!ENTITY' in body.upper():
         raise ValueError('Declaraciones XML no admitidas')
@@ -123,4 +146,4 @@ def roads(body, received):
         properties = item.get('properties') or {}
         features.append({'type': 'Feature', 'geometry': geometry, 'properties': {'id': str(item.get('id', index)), 'label': str(properties.get('name') or properties.get('ref') or 'Tramo'), 'observed_at': None, 'received_at': received, 'source': 'roads', 'kind': 'reference'}})
     return (features, None)
-ADAPTERS = {'rail': rail, 'dgt': dgt, 'flights': flights, 'roads': roads}
+ADAPTERS = {'rail': rail, 'dgt': dgt, 'flights': flights, 'weather': weather, 'roads': roads}
