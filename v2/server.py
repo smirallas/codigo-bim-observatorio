@@ -30,7 +30,7 @@ def feature_payload(archive,source,capture_id,ordinal,at=None):
     if not row:return None
     prop=row['properties']
     if prop.get('observed_at') and instant(prop['observed_at'])>cutoff:return None
-    associate=lambda *args: None
+    from networks import associate
     lookup=lambda *args: None
     return {'feature':{'type':'Feature','geometry':row['geometry'],'properties':prop},
         'capture':{'id':row['id'],'received_at':row['received_at'].isoformat(),
@@ -145,7 +145,7 @@ class Handler(BaseHTTPRequestHandler):
                 result=feature_payload(Archive(os.environ['DATABASE_URL']),source,int(capture_id),int(ordinal),query.get('at',[None])[0])
                 return self.json(200,result) if result else self.json(404,{'error':'Entidad no disponible para este instante'})
             if path=='/api/reference-layers':
-                return self.json(200,[])
+                return self.json(200,reference_layers(roads='roads' in CATALOG))
             if path.startswith('/api/reference/'):
                 match=re.fullmatch(r'/api/reference/(railway|highways)/(\d{1,2})/(\d{1,5})/(\d{1,5})\.png',path)
                 if not match:return self.json(400,{'error':'Referencia o tesela no válida'})
