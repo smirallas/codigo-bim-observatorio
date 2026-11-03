@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
     mem_limit: 384m
   web:
-    image: codigo-bim-observatorio:mapas-meteorologicos
+    image: codigo-bim-observatorio:mapas-meteorologicos-aemet
     build:
       context: ..
       dockerfile: v2/Dockerfile
@@ -43,7 +43,7 @@ services:
     restart: unless-stopped
     mem_limit: 256m
   collector:
-    image: codigo-bim-observatorio:mapas-meteorologicos
+    image: codigo-bim-observatorio:mapas-meteorologicos-aemet
     command: [python, collector.py]
     healthcheck:
       test: [CMD, python, -c, "import os,time; assert time.time()-os.path.getmtime('/tmp/collector-heartbeat')<90"]

@@ -1,137 +1,163 @@
-"""Mapas de predicción ICON del DWD. Metadatos archivados; WMS actual, sin replay implícito."""
-from datetime import datetime,timedelta,timezone
+"""Predicciones AEMET HARMONIE-AROME: GeoTIFF oficiales, reproyectados sin interpolar colores."""
+import ast
+from datetime import datetime, timezone
 import hashlib
+import gzip
+import io
 import os
 from pathlib import Path
 import re
+import tarfile
 import threading
-import time
-import urllib.parse
 import urllib.request
-import xml.etree.ElementTree as ET
 from uuid import uuid4
+
+import numpy as np
+from PIL import Image, ImageDraw
+import rasterio
+from rasterio.io import MemoryFile
+from rasterio.transform import from_bounds
+from rasterio.warp import reproject, Resampling
 from archive import instant
-from reference import PNG,tile_bbox
+from reference import tile_bbox
 
-WMS='https://maps.dwd.de/geoserver/wms'
+URL='https://www.aemet.es/es/api-eltiempo/modelos/download/harmonie/'
 LAYERS={
- 'temperature':{'layer':'dwd:Icon_reg025_fd_sl_T2M','title':'Temperatura a 2 m','unit':'°C'},
- 'rain':{'layer':'dwd:Icon_reg025_fd_sl_TOTPREC06H','title':'Precipitación acumulada en 6 h','unit':'mm / 6 h'},
- 'wind':{'layer':'dwd:Icon_reg025_fd_sl_UV10M','title':'Viento a 10 m','unit':'Según escala DWD'},
+ 'temperature':{'suffix':'11','title':'Temperatura a 2 m','unit':'°C'},
+ 'rain':{'suffix':'61_1HH','title':'Precipitación en la hora previa','unit':'mm / 1 h'},
+ 'wind':{'suffix':'32','title':'Velocidad del viento','unit':'km/h'},
 }
-NS={'w':'http://www.opengis.net/wms'}
-ATTRIBUTION='© Deutscher Wetterdienst (DWD) · ICON · CC BY 4.0'
+ATTRIBUTION='© AEMET · HARMONIE-AROME · elaboración cartográfica de Código BIM'
 CACHE=Path(os.getenv('WEATHER_MAP_CACHE','/tmp/codigo-bim-weather'))
-_network=threading.BoundedSemaphore(3)
-_lock=threading.Lock();_failed={}
+_lock=threading.Lock()
+_render=threading.BoundedSemaphore(2)
+PATTERN=re.compile(r'down_(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)_(11|32|61_1HH)\.tif')
+MAX_DOWNLOAD=80_000_000
 
 
-def valid_times(item):
-    # El catálogo agrega varias salidas: no es el producto cartesiano de ambas dimensiones.
-    run=instant(item['run_at']);horizon=120 if run.hour in (6,18) else 180
-    result=[]
-    for value in item['times']:
-        hours=(instant(value)-run).total_seconds()/3600
-        if not 0<=hours<=horizon or (hours>78 and hours%3):continue
-        # Se ofrecen acumulados de seis horas en intervalos de seis horas, nunca lluvia instantánea.
-        if item['id']=='rain' and (hours<6 or hours%6):continue
-        result.append(value)
-    return result
-
-
-def times(value):
-    if '/' not in value:return sorted({instant(v).isoformat() for v in value.split(',') if v.strip()})
-    start,end,step=value.split('/')
-    match=re.fullmatch(r'PT([1-9][0-9]?)H',step)
-    if not match:raise ValueError('Intervalo WMS no reconocido')
-    current=instant(start);last=instant(end);result=[]
-    while current<=last:
-        result.append(current.isoformat());current+=timedelta(hours=int(match[1]))
-        if len(result)>1000:raise ValueError('Demasiados instantes WMS')
-    return result
-
-
-def parse_metadata(body,now=None):
-    if b'<!DOCTYPE' in body.upper() or b'<!ENTITY' in body.upper():raise ValueError('XML no admitido')
-    root=ET.fromstring(body);result=[];now=now or datetime.now(timezone.utc)
-    for key,config in LAYERS.items():
-        layer=next((l for l in root.findall('.//w:Layer',NS) if l.findtext('w:Name',namespaces=NS)==config['layer']),None)
-        if layer is None:continue
-        dimensions={d.get('name').lower():d for d in layer.findall('w:Dimension',NS)}
-        if 'reference_time' not in dimensions or 'time' not in dimensions:continue
-        runs=[t for t in times(dimensions['reference_time'].text or '') if instant(t)<=now]
-        if not runs:continue
-        run=max(runs,key=instant)
-        valid=[t for t in times(dimensions['time'].text or '') if instant(t)>=instant(run)]
-        styles=[s.findtext('w:Name',namespaces=NS) for s in layer.findall('w:Style',NS)]
-        style=styles[0] if styles else ''
-        if style and not re.fullmatch(r'[A-Za-z0-9_:.-]{1,100}',style):raise ValueError('Estilo WMS no admitido')
-        item={'id':key,**config,'run_at':run,'times':valid,'style':style,
-            'model_stale':(now-instant(run)).total_seconds()>18*3600}
-        item['times']=valid_times(item);result.append(item)
-    if len(result)!=3:raise ValueError('Faltan capas meteorológicas requeridas')
-    return {'maps':result,'attribution':ATTRIBUTION,'kind':'forecast',
-        'note':'Mapas WMS actuales del proveedor; no reconstruyen el tiempo conocido en un replay histórico.'}
+def parse_package(body,region):
+    if region not in ('PB','CAN'):raise ValueError('Área no admitida')
+    files={};scales={};generated=[]
+    with tarfile.open(fileobj=io.BytesIO(body),mode='r:gz') as package:
+        members=package.getmembers()
+        if len(members)>2000 or sum(m.size for m in members)>250_000_000:raise ValueError('Paquete AEMET demasiado grande')
+        for member in members:
+            match=PATTERN.fullmatch(member.name)
+            if not match:continue
+            if not member.isfile() or member.size>4_000_000:raise ValueError('Raster no admitido')
+            valid,suffix=match.groups();key=next(k for k,v in LAYERS.items() if v['suffix']==suffix)
+            data=package.extractfile(member).read()
+            with MemoryFile(data) as memory, memory.open() as dataset:
+                tags=dataset.tags()
+                if dataset.crs!=rasterio.crs.CRS.from_epsg(4326) or dataset.count!=4 or dataset.dtypes!=('uint8',)*4 or dataset.width*dataset.height>2_000_000:raise ValueError('GeoTIFF AEMET inesperado')
+                if instant(tags['FECHA'])!=instant(valid) or tags.get('FUENTE')!='AEMET':raise ValueError('Fecha o fuente del raster incoherente')
+                if key not in scales:
+                    scale=ast.literal_eval(tags['ESCALA'])['Lista RGBA']
+                    if not isinstance(scale,list) or not 1<=len(scale)<=100:raise ValueError('Escala no válida')
+                    scales[key]=scale
+            files[(key,instant(valid).isoformat())]=(region+'/'+member.name,data)
+            generated.append(datetime.fromtimestamp(member.mtime,timezone.utc).isoformat())
+    if not all(any(k==key for k,_ in files) for key in LAYERS):raise ValueError('Faltan campos AEMET')
+    return files,scales,max(generated)
 
 
 def collect_metadata(archive):
-    request=urllib.request.Request(WMS+'?service=WMS&version=1.3.0&request=GetCapabilities',headers={
-        'User-Agent':'CodigoBIM-DataLab/2.3 https://codigobim.com/','Cache-Control':'no-cache','Pragma':'no-cache'})
-    with urllib.request.urlopen(request,timeout=45) as response:body=response.read(12_000_001)
-    if len(body)>12_000_000:raise ValueError('Metadatos demasiado grandes')
-    metadata=parse_metadata(body)
-    result=archive.add('weather_maps',datetime.now(timezone.utc),body,[],'forecast',metadata=metadata)
+    # Los dos dominios se validan antes de publicar una captura. Sin sustitución por otro proveedor.
+    rasters={key:{} for key in LAYERS};scales={};generations={};content={}
+    for region in ('PB','CAN'):
+        request=urllib.request.Request(URL+region,headers={'User-Agent':'CodigoBIM-Observatorio/2.6 https://codigobim.com/'})
+        with urllib.request.urlopen(request,timeout=90) as response:body=response.read(MAX_DOWNLOAD+1)
+        if len(body)>MAX_DOWNLOAD:raise ValueError('Descarga AEMET demasiado grande')
+        files,legend,generated=parse_package(body,region);scales.update(legend);generations[region]=generated
+        for (key,valid),(name,data) in files.items():
+            rasters[key].setdefault(valid,[]).append(name);content[name]=data
+    buffer=io.BytesIO()
+    with tarfile.open(fileobj=buffer,mode='w') as package:
+        for name,data in sorted(content.items()):
+            info=tarfile.TarInfo(name);info.size=len(data);package.addfile(info,io.BytesIO(data))
+    now=datetime.now(timezone.utc)
+    metadata={'provider':'aemet','attribution':ATTRIBUTION,'kind':'forecast','generated_at_by_region':generations,
+      'note':'Predicción, no observación. La hora de salida del modelo no está identificada en estos archivos.',
+      'maps':[{'id':key,**config,'run_at':None,'times':sorted(rasters[key]),'rasters':rasters[key],
+        'scale':scales[key],'generated_at':max(generations.values())} for key,config in LAYERS.items()]}
+    original=gzip.compress(buffer.getvalue(),mtime=0)
+    digest=hashlib.sha256(original).hexdigest()
+    with archive.connect() as db:
+        previous=db.execute("SELECT id FROM captures WHERE source='weather_maps' AND sha256=%s ORDER BY received_at DESC LIMIT 1",(digest,)).fetchone()
+    if previous:
+        archive.attempt('weather_maps','cached',http_status=200)
+        return {'source':'weather_maps','status':'cached','id':previous['id'],'sha256':digest}
+    result=archive.add('weather_maps',now,original,[],'forecast',metadata=metadata)
     archive.attempt('weather_maps','ok',http_status=200)
     return {'source':'weather_maps','status':'ok',**result}
 
 
 def payload(archive,source='weather_maps'):
-    # Una recepción posterior puede ser un catálogo de caché anterior. No retroceder de modelo.
     with archive.connect() as db:
-        snapshot=db.execute("""SELECT id,received_at,metadata FROM captures WHERE source=%s
-            AND received_at<=now() ORDER BY (metadata->'maps'->0->>'run_at')::timestamptz DESC,received_at DESC,id DESC LIMIT 1""",(source,)).fetchone()
-    if not snapshot:return {'status':'unavailable','maps':[],'note':'Aún no hay metadatos meteorológicos recibidos.'}
-    metadata=snapshot['metadata'];now=datetime.now(timezone.utc)
+        row=db.execute("""SELECT id,received_at,metadata FROM captures WHERE source=%s AND metadata->>'provider'='aemet'
+          AND received_at<=now() ORDER BY metadata->'maps'->0->>'generated_at' DESC,received_at DESC,id DESC LIMIT 1""",(source,)).fetchone()
+    if not row:return {'status':'unavailable','maps':[],'note':'Aún no hay mapas de AEMET recibidos.'}
+    metadata=row['metadata'];now=datetime.now(timezone.utc)
     for item in metadata['maps']:
-        item['times']=valid_times(item)
-        item['model_stale']=(now-instant(item['run_at'])).total_seconds()>18*3600
         future=[t for t in item['times'] if instant(t)>=now]
-        item['selected_time']=future[0] if future else item['times'][-1] if item['times'] else None
-    return {'status':'available','capture_id':snapshot['id'],'received_at':snapshot['received_at'].isoformat(),**metadata}
+        item['selected_time']=future[0] if future else item['times'][-1]
+        item['model_stale']=(now-instant(item['generated_at'])).total_seconds()>18*3600
+    # No enviar al navegador rutas internas ni la tabla de archivos.
+    return {'status':'available','capture_id':row['id'],'received_at':row['received_at'].isoformat(),**metadata,
+       'maps':[{k:v for k,v in m.items() if k not in ('rasters','scale')} for m in metadata['maps']]}
+
+
+def raster_path(archive,capture_id,name):
+    if not re.fullmatch(r'(PB|CAN)/down_[0-9T:+.-]+_(11|32|61_1HH)\.tif',name):raise ValueError('Archivo no permitido')
+    directory=CACHE/('aemet-'+str(capture_id));path=directory/(hashlib.sha256(name.encode()).hexdigest()+'.tif')
+    with _lock:
+        if path.exists():return path
+        with archive.connect() as db:
+            row=db.execute("SELECT original FROM captures WHERE id=%s AND source='weather_maps' AND metadata->>'provider'='aemet'",(capture_id,)).fetchone()
+        if not row:raise ValueError('Captura AEMET no disponible')
+        directory.mkdir(parents=True,exist_ok=True)
+        with tarfile.open(fileobj=io.BytesIO(bytes(row['original'])),mode='r:gz') as package:
+            # Materializar una vez; nombres hash, nunca extraer rutas del proveedor.
+            for member in package:
+                if not re.fullmatch(r'(PB|CAN)/down_[0-9T:+.-]+_(11|32|61_1HH)\.tif',member.name):continue
+                target=directory/(hashlib.sha256(member.name.encode()).hexdigest()+'.tif')
+                temporary=target.with_suffix('.'+uuid4().hex+'.tmp');temporary.write_bytes(package.extractfile(member).read());temporary.replace(target)
+        # Solo caché regenerable de AEMET; nunca originales archivados ni otras fuentes.
+        directories=[d for d in CACHE.glob('aemet-*') if d.is_dir() and re.fullmatch(r'aemet-[0-9]+',d.name)]
+        size=sum(f.stat().st_size for d in directories for f in d.glob('*.tif'))
+        for old in sorted(directories,key=lambda d:d.stat().st_mtime):
+            if size<=256*1024*1024:break
+            if old==directory:continue
+            for f in old.glob('*.tif'):
+                size-=f.stat().st_size;f.unlink()
+            if not any(old.iterdir()):old.rmdir()
+        return path
+
+
+def legend_image(item):
+    scale=item['scale'];image=Image.new('RGBA',(230,len(scale)*20+28),'white');draw=ImageDraw.Draw(image)
+    draw.text((4,3),item['unit'],fill='black')
+    for i,entry in enumerate(scale):
+        color=tuple(map(int,entry['RGBA']));low,high=entry['Valores'];label=f'{low} - {high}' if high!='' else f'>= {low}'
+        draw.rectangle((4,26+i*20,32,42+i*20),fill=color);draw.text((40,26+i*20),label,fill='black')
+    out=io.BytesIO();image.save(out,format='PNG');return out.getvalue()
 
 
 def image(archive,capture_id,key,valid,z=None,x=None,y=None,legend=False):
     if key not in LAYERS:raise ValueError('Mapa no admitido')
-    if not legend:bbox=tile_bbox(z,x,y)
+    bbox=None if legend else tile_bbox(z,x,y)
     with archive.connect() as db:
-        row=db.execute("SELECT metadata FROM captures WHERE id=%s AND source='weather_maps' AND received_at<=now()",(capture_id,)).fetchone()
-    if not row:raise ValueError('Metadatos no disponibles')
+        row=db.execute("SELECT metadata FROM captures WHERE id=%s AND source='weather_maps' AND metadata->>'provider'='aemet' AND received_at<=now()",(capture_id,)).fetchone()
+    if not row:raise ValueError('Metadatos AEMET no disponibles')
     item=next((m for m in row['metadata']['maps'] if m['id']==key),None)
-    if item is None or valid not in valid_times(item):raise ValueError('Instante no admitido')
-    params={'SERVICE':'WMS','VERSION':'1.1.1','REQUEST':'GetLegendGraphic' if legend else 'GetMap',
-        'FORMAT':'image/png','LAYER' if legend else 'LAYERS':LAYERS[key]['layer'],
-        'STYLE' if legend else 'STYLES':item['style'],'TIME':valid.replace('+00:00','Z'),'DIM_REFERENCE_TIME':item['run_at'].replace('+00:00','Z')}
-    if key=='wind':params['ELEVATION']='10'
-    if not legend:params.update(SRS='EPSG:3857',BBOX=','.join(map(str,bbox)),WIDTH=256,HEIGHT=256,TRANSPARENT='TRUE')
-    url=WMS+'?'+urllib.parse.urlencode(params);fingerprint=hashlib.sha256(url.encode()).hexdigest()
-    failure_key=fingerprint  # Un fallo de una zona o leyenda no bloquea las demás teselas.
-    CACHE.mkdir(parents=True,exist_ok=True);path=CACHE/(fingerprint+'.png')
-    with _lock:
-        if path.exists():return path.read_bytes()
-        if time.monotonic()-_failed.get(failure_key,-1000)<60:raise OSError('WMS en espera tras un fallo')
-    try:
-        with _network:
-            with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'CodigoBIM-DataLab/2.3 https://codigobim.com/','Cache-Control':'no-cache','Pragma':'no-cache'}),timeout=30) as response:body=response.read(2_000_001)
-        if len(body)>2_000_000 or not body.startswith(PNG):raise ValueError('No se recibió una imagen meteorológica PNG')
-        with _lock:
-            temporary=path.with_name(path.name+'.'+uuid4().hex+'.tmp')
-            temporary.write_bytes(body);temporary.replace(path)
-            files=sorted(CACHE.glob('*.png'),key=lambda p:p.stat().st_mtime);size=sum(p.stat().st_size for p in files)
-            for old in files:
-                if size<=8*1024*1024:break
-                if old==path:continue
-                size-=old.stat().st_size;old.unlink(missing_ok=True)
-        return body
-    except Exception:
-        with _lock:_failed[failure_key]=time.monotonic()
-        raise
+    if not item or valid not in item['times']:raise ValueError('Validez no admitida')
+    if legend:return legend_image(item)
+    with _render,rasterio.Env(GDAL_CACHEMAX=16):
+        canvas=np.zeros((4,256,256),dtype='uint8');transform=from_bounds(*bbox,256,256)
+        for name in item['rasters'][valid]:
+            with rasterio.open(raster_path(archive,capture_id,name)) as src:
+                output=np.zeros_like(canvas)
+                reproject(rasterio.band(src,[1,2,3,4]),output,src_transform=src.transform,src_crs=src.crs,
+                   dst_transform=transform,dst_crs='EPSG:3857',resampling=Resampling.nearest,num_threads=1)
+                mask=output[3]>0;canvas[:,mask]=output[:,mask]
+        out=io.BytesIO();Image.fromarray(canvas.transpose(1,2,0)).save(out,format='PNG');return out.getvalue()

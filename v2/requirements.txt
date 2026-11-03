@@ -1,2 +1,5 @@
 psycopg[binary]==3.3.6
 tzdata==2026.6
+rasterio==1.4.4
+Pillow==12.0.0
+numpy==2.5.4

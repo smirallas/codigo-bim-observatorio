@@ -8,7 +8,7 @@ from unittest.mock import Mock,MagicMock,patch
 from uuid import uuid4
 from archive import Archive
 from collector import source_interval,collect_one
-from weather_maps import LAYERS,parse_metadata,times,image,valid_times,payload
+from weather_dwd_legacy import LAYERS,parse_metadata,times,image,valid_times,payload
 
 
 def capabilities():
@@ -42,7 +42,7 @@ class LiveWeatherTests(unittest.TestCase):
         self.assertEqual(valid_times(item),['2026-11-02T12:00:00Z','2026-11-02T18:00:00Z'])
 
     def test_arbitrary_weather_layer_or_tile_cannot_trigger_provider(self):
-        with patch('weather_maps.urllib.request.urlopen') as download:
+        with patch('weather_dwd_legacy.urllib.request.urlopen') as download:
             with self.assertRaises(ValueError):image(Mock(),1,'untrusted','',0,0,0)
             with self.assertRaises(ValueError):image(Mock(),1,'temperature','',20,0,0)
         download.assert_not_called()
@@ -75,6 +75,6 @@ class LiveWeatherTests(unittest.TestCase):
     def test_broken_wind_legend_does_not_block_map_tiles(self):
         archive=MagicMock();archive.connect.return_value.__enter__.return_value.execute.return_value.fetchone.return_value={
             'metadata':{'maps':[{'id':'wind','run_at':'2026-11-01T00:00:00Z','times':['2026-11-01T01:00:00Z'],'style':'example'}]}}
-        with tempfile.TemporaryDirectory() as folder,patch('weather_maps.CACHE',Path(folder)),patch('weather_maps.urllib.request.urlopen',side_effect=[io.BytesIO(b'<ServiceException/>'),io.BytesIO(b'\x89PNG\r\n\x1a\nfixture')]):
+        with tempfile.TemporaryDirectory() as folder,patch('weather_dwd_legacy.CACHE',Path(folder)),patch('weather_dwd_legacy.urllib.request.urlopen',side_effect=[io.BytesIO(b'<ServiceException/>'),io.BytesIO(b'\x89PNG\r\n\x1a\nfixture')]):
             with self.assertRaises(ValueError):image(archive,987654321,'wind','2026-11-01T01:00:00Z',legend=True)
             self.assertTrue(image(archive,987654321,'wind','2026-11-01T01:00:00Z',0,0,0).startswith(b'\x89PNG'))

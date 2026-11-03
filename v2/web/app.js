@@ -18,8 +18,9 @@ function empty(){return {type:'FeatureCollection',features:[]};}
 function setLayer(key,data){cache.set(key,data);categoryControls?.update(key,data);map.getSource(key).setData(data);}
 function note(key,message,error=false){const node=$('status-'+key);text(node,message);node.classList.toggle('error',error);}
 function reorder(){for(const row of [...$('layers').children].reverse())map.moveLayer('draw-'+row.dataset.id);}
-function syncCredits(){const values=['Natural Earth'];if(['rail','roads'].includes(navigation.current().id))values.push('© IGN-CNIG');for(const id of navigation.current().sources){const data=cache.get(id);if(data?.features.length)values.push(data.attribution||catalog.find(l=>l.id===id).attribution);}if(navigation.current().id==='weather')values.push('© DWD · ICON');text($('map-attribution'),values.join(' · '));}
+function syncCredits(){const values=['Natural Earth'];if(['rail','roads'].includes(navigation.current().id))values.push('© IGN-CNIG');for(const id of navigation.current().sources){const data=cache.get(id);if(data?.features.length)values.push(data.attribution||catalog.find(l=>l.id===id).attribution);}if(navigation.current().id==='weather')values.push('© AEMET · HARMONIE-AROME');text($('map-attribution'),values.join(' · '));}
 function fit(){
+ if(navigation?.current().id==='weather'){map.fitBounds([[-19,27],[5,45]],{padding:innerWidth>850?{left:350,right:35,top:35,bottom:35}:35,duration:0});return;}
  const points=[];for(const [key,data] of cache){if(navigation?!navigation.isVisible(key):!$('toggle-'+key).checked)continue;for(const feature of categoryControls?.filter(key,data.features)||data.features){const g=feature.geometry;if(g.type==='Point')points.push(g.coordinates);else if(g.type==='LineString')points.push(...g.coordinates);else if(g.type==='MultiLineString')points.push(...g.coordinates.flat());}}
  if(points.length){const bounds=new maplibregl.LngLatBounds();points.forEach(p=>bounds.extend(p));map.fitBounds(bounds,{padding:innerWidth>850?{left:document.body.classList.contains('controls-closed')?45:350,right:45,top:45,bottom:45}:45,maxZoom:12,duration:0});}
 }
@@ -30,7 +31,7 @@ async function render({automatic=false}={}){
  try{
   await Promise.allSettled([
    weatherControls?.update(navigation.weatherActive()),
-   ...catalog.filter(layer=>navigation.sourceActive(layer.id)).map(async layer=>{
+   ...catalog.filter(layer=>layer.id!=='weather'&&navigation.sourceActive(layer.id)).map(async layer=>{
     try{
      const data=await get(`api/layers/${layer.id}?mode=archive`);if(sequence!==epoch)return;
      setLayer(layer.id,data);
@@ -66,7 +67,7 @@ map.on('load',async()=>{
    map.addLayer({id:'draw-'+layer.id,source:layer.id,type:line?'line':'circle',paint:line?{'line-color':layer.color,'line-width':4}:{'circle-color':layer.color,'circle-radius':7,'circle-stroke-color':'#fff','circle-stroke-width':1}});
    const row=document.createElement('div');row.className='layer';row.dataset.id=layer.id;
    const label=document.createElement('label');label.className='layer-title';const check=document.createElement('input');check.type='checkbox';check.checked=layer.id!=='weather';check.id='toggle-'+layer.id;
-   const swatch=document.createElement('span');swatch.className='swatch';swatch.style.background=layer.color;label.append(check,swatch,document.createTextNode(layer.id==='weather'?'Predicción puntual · MET Norway':layer.title));row.append(label);
+   const swatch=document.createElement('span');swatch.className='swatch';swatch.style.background=layer.color;label.append(check,swatch,document.createTextNode(layer.title));row.append(label);
    if(layer.id==='weather')map.setLayoutProperty('draw-weather','visibility','none');
    check.addEventListener('change',()=>navigation.sync());
    const status=document.createElement('p');status.id='status-'+layer.id;status.className='status';row.append(status);

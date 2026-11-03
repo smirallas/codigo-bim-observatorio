@@ -10,12 +10,15 @@ import sys
 from urllib.parse import parse_qs, urlsplit
 
 sys.path.insert(0,str(Path(__file__).resolve().parent.parent))
+from engine import available, evaluate
+from scenarios import all_scenarios
 from archive import Archive, instant
 from demo import AT, layers
 from sources import CATALOG
 from reference import reference_layers, tile
 
 ROOT=Path(__file__).parent
+SCENARIOS={case['id']:case for case in all_scenarios()}
 
 
 def feature_payload(archive,source,capture_id,ordinal,at=None):
@@ -48,6 +51,7 @@ def bbox_value(value):
 
 
 def layer_payload(source, query, archive):
+    if source=='weather':return {'type':'FeatureCollection','features':[],'status':'unavailable','note':'Consultar mapas AEMET'}
     meta=CATALOG[source]
     mode=query.get('mode',['demo'])[0]
     if mode not in ('demo','archive'):
@@ -156,7 +160,7 @@ class Handler(BaseHTTPRequestHandler):
             if path=='/api/health':
                 with Archive(os.environ['DATABASE_URL']).connect() as db:
                     db.execute('SELECT 1').fetchone()
-                return self.json(200,{'status':'ok','version':'2.5.0','database':'postgresql-postgis','reader_storage':False})
+                return self.json(200,{'status':'ok','version':'2.6.0-aemet','database':'postgresql-postgis','reader_storage':False})
             if path=='/api/layers':
                 return self.json(200,[{'id':key,**value} for key,value in CATALOG.items()])
             if path.startswith('/api/layers/'):

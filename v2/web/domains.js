@@ -23,7 +23,7 @@ export function domains(map,catalog,{onChange}={}){
   $('domain-enabled').checked=visible;$('domain-enabled-label').textContent='Mostrar '+domain.title.toLowerCase();
   for(const [id,button] of buttons){const selected=id===active;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;}
   for(const layer of catalog){
-   const inDomain=domain.sources.includes(layer.id);const row=$('layers').querySelector(`[data-id="${layer.id}"]`);row.hidden=!inDomain;
+   const inDomain=domain.sources.includes(layer.id);const row=$('layers').querySelector(`[data-id="${layer.id}"]`);row.hidden=!inDomain||layer.id==='weather';
    for(const button of row.querySelectorAll('button.order'))button.hidden=domain.sources.filter(s=>catalog.some(l=>l.id===s)).length<2;
    const data=$('data-'+layer.id);if(data)data.hidden=!inDomain;
    map.setLayoutProperty('draw-'+layer.id,'visibility',inDomain&&visible&&$('toggle-'+layer.id).checked?'visible':'none');

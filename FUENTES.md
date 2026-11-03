@@ -12,4 +12,4 @@ DGT: https://nap.dgt.es/es/dataset/incidencias-dgt-datex2-v3-7 · revisar licenc
 
 ADSB.lol: https://www.adsb.lol/about · ODbL, radio acotado; no representa todos los vuelos. OpenSky opcional: revisar acuerdo operativo en https://opensky-network.org/about/terms-of-use antes de activar; las pruebas no acreditan permiso operativo.
 
-DWD: https://www.dwd.de/copyright · CC BY 4.0, mapas actuales ICON, lluvia acumulada 6 h y viento. MET Norway: https://api.met.no/doc/TermsOfService · CC BY 4.0, identificación y caché. Son predicciones, no observaciones.
+AEMET HARMONIE-AROME: paquetes GeoTIFF oficiales PB y CAN, temperatura, precipitación de la hora previa y velocidad del viento. Condiciones y atribución: https://www.aemet.es/es/nota_legal . Interpretación y datos georreferenciados: https://www.aemet.es/es/eltiempo/prediccion/modelosnumericos/harmonie_arome/ayuda . Son predicciones, no observaciones. DWD y MET Norway no se consultan en la versión activa.

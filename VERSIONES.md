@@ -12,4 +12,4 @@ Las etiquetas conservan el código al terminar cada entrega. `main` puede avanza
 | 6 | [evaluar-datos-aproximaciones](https://github.com/smirallas/codigo-bim-observatorio/tree/evaluar-datos-aproximaciones-v2) |
 | 7 | [carreteras-incidencias-dgt](https://github.com/smirallas/codigo-bim-observatorio/tree/carreteras-incidencias-dgt-v2) |
 | 8 | [aviones-datos-abiertos](https://github.com/smirallas/codigo-bim-observatorio/tree/aviones-datos-abiertos-v2) |
-| 9 | [mapas-meteorologicos](https://github.com/smirallas/codigo-bim-observatorio/tree/mapas-meteorologicos-v2) |
+| 9 | [Mapas meteorológicos con AEMET](https://github.com/smirallas/codigo-bim-observatorio/tree/mapas-meteorologicos-aemet) |
